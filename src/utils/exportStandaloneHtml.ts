@@ -190,21 +190,58 @@ export function generateStandaloneHtml(config: WeddingConfig): string {
     </div>
   </section>
 
+  <div id="photo-lightbox" class="modal-backdrop hidden" style="position:fixed;z-index:60;" onclick="this.classList.add('hidden')">
+    <div style="position:relative;max-width:440px;width:100%;" onclick="event.stopPropagation()">
+      <img id="lightbox-img" alt="Foto Mempelai" style="width:100%;max-height:76dvh;object-fit:contain;border-radius:16px;border:2px solid #fff;background:#1A181D;" />
+      <p id="lightbox-caption" style="color:#FAF6F0;text-align:center;font-size:13px;font-weight:600;margin-top:8px;"></p>
+      <button type="button" class="btn-secondary" style="margin:10px auto 0;display:flex;padding:6px 16px;" onclick="document.getElementById('photo-lightbox').classList.add('hidden')">Tutup</button>
+    </div>
+  </div>
+
   <script>
     window.__WEDDING_CONFIG__ = ${safeJson};
   </script>
   <script>
     (function() {
+      if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
+        CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+          var rad = Array.isArray(r) ? (r[0] || 0) : (r || 0);
+          if (w < 2 * rad) rad = w / 2;
+          if (h < 2 * rad) rad = h / 2;
+          this.moveTo(x + rad, y);
+          this.arcTo(x + w, y, x + w, y + h, rad);
+          this.arcTo(x + w, y + h, x, y + h, rad);
+          this.arcTo(x, y + h, x, y, rad);
+          this.arcTo(x, y, x + w, y, rad);
+          this.closePath();
+          return this;
+        };
+      }
+
       const cfg = window.__WEDDING_CONFIG__;
       const params = new URLSearchParams(window.location.search);
       const guestName = params.get('to') || 'Bapak/Ibu/Sahabat';
       let leadRole = 'groom';
       const imgCache = {};
 
+      window.zoomPhoto = function(url, label) {
+        if (!url) return;
+        document.getElementById('lightbox-img').src = url;
+        document.getElementById('lightbox-caption').textContent = label || '';
+        document.getElementById('photo-lightbox').classList.remove('hidden');
+      };
+
       function getImg(url) {
         if (!url) return null;
-        if (!imgCache[url]) { const im = new Image(); im.src = url; imgCache[url] = im; }
-        return imgCache[url].complete ? imgCache[url] : null;
+        if (!imgCache[url]) {
+          const im = new Image();
+          im.onload = function() {
+            if (typeof renderStaticAvatars === 'function') renderStaticAvatars();
+          };
+          im.src = url;
+          imgCache[url] = im;
+        }
+        return imgCache[url].complete && imgCache[url].naturalWidth > 0 ? imgCache[url] : null;
       }
 
       function drawChar(ctx, char, x, y, scale, dir, phase, moving) {
@@ -369,13 +406,19 @@ export function generateStandaloneHtml(config: WeddingConfig): string {
       document.getElementById('rsvp-name').value = guestName === 'Bapak/Ibu/Sahabat' ? '' : guestName;
       if (cfg.groomPhotoUrl) {
         const gp = document.getElementById('inv-groom-photo');
+        gp.onerror = function() { gp.style.display = 'none'; };
+        gp.onclick = function() { zoomPhoto(cfg.groomPhotoUrl, cfg.groomFullName); };
         gp.src = cfg.groomPhotoUrl;
         gp.style.display = 'block';
+        gp.style.cursor = 'pointer';
       }
       if (cfg.bridePhotoUrl) {
         const bp = document.getElementById('inv-bride-photo');
+        bp.onerror = function() { bp.style.display = 'none'; };
+        bp.onclick = function() { zoomPhoto(cfg.bridePhotoUrl, cfg.brideFullName); };
         bp.src = cfg.bridePhotoUrl;
         bp.style.display = 'block';
+        bp.style.cursor = 'pointer';
       }
 
       cfg.gifts.forEach(function(g) {
@@ -454,8 +497,8 @@ export function generateStandaloneHtml(config: WeddingConfig): string {
         document.getElementById('st-title').textContent = st.title;
         const body = document.getElementById('st-body');
         if (st.id === 'mempelai') {
-          const gPhoto = cfg.groomPhotoUrl ? '<img src="' + cfg.groomPhotoUrl + '" referrerpolicy="no-referrer" style="width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top;border-radius:10px;border:1px solid #E5DDD3;margin-bottom:8px;" />' : '';
-          const bPhoto = cfg.bridePhotoUrl ? '<img src="' + cfg.bridePhotoUrl + '" referrerpolicy="no-referrer" style="width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top;border-radius:10px;border:1px solid #E5DDD3;margin-bottom:8px;" />' : '';
+          const gPhoto = cfg.groomPhotoUrl ? '<img src="' + cfg.groomPhotoUrl + '" onerror="this.style.display=\'none\'" onclick="zoomPhoto(\'' + cfg.groomPhotoUrl.replace(/'/g, '') + '\', \'' + escapeHtml(cfg.groomFullName).replace(/'/g, '') + '\')" referrerpolicy="no-referrer" style="width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top;border-radius:10px;border:1px solid #E5DDD3;margin-bottom:8px;cursor:pointer;" />' : '';
+          const bPhoto = cfg.bridePhotoUrl ? '<img src="' + cfg.bridePhotoUrl + '" onerror="this.style.display=\'none\'" onclick="zoomPhoto(\'' + cfg.bridePhotoUrl.replace(/'/g, '') + '\', \'' + escapeHtml(cfg.brideFullName).replace(/'/g, '') + '\')" referrerpolicy="no-referrer" style="width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top;border-radius:10px;border:1px solid #E5DDD3;margin-bottom:8px;cursor:pointer;" />' : '';
           body.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">'
             + '<div style="background:#fff;border:1px solid #E5DDD3;border-radius:12px;padding:10px;text-align:center;">' + bPhoto + '<strong style="font-size:14px;">' + cfg.brideFullName + '</strong><div style="font-size:11px;color:#6B5D54;margin-top:2px;">' + cfg.brideParents + '</div></div>'
             + '<div style="background:#fff;border:1px solid #E5DDD3;border-radius:12px;padding:10px;text-align:center;">' + gPhoto + '<strong style="font-size:14px;">' + cfg.groomFullName + '</strong><div style="font-size:11px;color:#6B5D54;margin-top:2px;">' + cfg.groomParents + '</div></div>'
@@ -615,8 +658,14 @@ export function generateStandaloneHtml(config: WeddingConfig): string {
       }, 1000);
 
       const KEY = 'rsvp_standalone_' + cfg.groomNickname;
+      function safeReadRsvps() {
+        try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; }
+      }
+      function safeSaveRsvps(list) {
+        try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (e) {}
+      }
       function loadRsvps() {
-        const list = JSON.parse(localStorage.getItem(KEY) || '[]');
+        const list = safeReadRsvps();
         const box = document.getElementById('rsvp-list');
         box.innerHTML = list.length ? '' : '<div class="card" style="color:#6B5D54;font-size:14px;">Belum ada ucapan. Jadilah yang pertama mengirim doa!</div>';
         list.forEach(function(r) {
@@ -628,9 +677,9 @@ export function generateStandaloneHtml(config: WeddingConfig): string {
       loadRsvps();
       window.submitRsvp = function(e) {
         e.preventDefault();
-        const list = JSON.parse(localStorage.getItem(KEY) || '[]');
+        const list = safeReadRsvps();
         list.unshift({ name: document.getElementById('rsvp-name').value, status: document.getElementById('rsvp-status').value, msg: document.getElementById('rsvp-msg').value });
-        localStorage.setItem(KEY, JSON.stringify(list));
+        safeSaveRsvps(list);
         document.getElementById('rsvp-msg').value = '';
         loadRsvps();
       };

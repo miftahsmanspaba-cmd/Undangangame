@@ -141,16 +141,42 @@ export const CharacterStudioModal: React.FC<CharacterStudioModalProps> = ({
       const inlineLocalAsset = async (url?: string): Promise<string> => {
         if (!url) return '';
         if (url.startsWith('data:')) return url;
-        if (url.startsWith('/') || url.startsWith('blob:')) {
+        const isHttp = url.startsWith('http://') || url.startsWith('https://');
+        if (!isHttp) {
           try {
-            const resp = await fetch(url);
+            const resolved = new URL(url, window.location.href).href;
+            const resp = await fetch(resolved);
+            if (!resp.ok) return url;
             const blob = await resp.blob();
-            return await new Promise<string>((resolve) => {
+            const rawDataUrl = await new Promise<string>((resolve) => {
               const reader = new FileReader();
               reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : url);
               reader.onerror = () => resolve(url);
               reader.readAsDataURL(blob);
             });
+            // Resize large local photos nicely so standalone index.html stays fast & reliable
+            if (rawDataUrl.startsWith('data:image/')) {
+              return await new Promise<string>((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                  const maxDim = 720;
+                  const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+                  const c = document.createElement('canvas');
+                  c.width = Math.max(1, Math.round(img.width * scale));
+                  c.height = Math.max(1, Math.round(img.height * scale));
+                  const ctx = c.getContext('2d');
+                  if (!ctx) {
+                    resolve(rawDataUrl);
+                    return;
+                  }
+                  ctx.drawImage(img, 0, 0, c.width, c.height);
+                  resolve(c.toDataURL('image/jpeg', 0.86));
+                };
+                img.onerror = () => resolve(rawDataUrl);
+                img.src = rawDataUrl;
+              });
+            }
+            return rawDataUrl;
           } catch {
             return url;
           }

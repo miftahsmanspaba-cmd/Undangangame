@@ -17,9 +17,13 @@ export default function App() {
       const saved = localStorage.getItem(CONFIG_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
+        const normalizeAssetUrl = (url?: string) =>
+          typeof url === 'string' && url.startsWith('/assets/') ? `.${url}` : url;
         return {
           ...DEFAULT_WEDDING_CONFIG,
           ...parsed,
+          groomPhotoUrl: normalizeAssetUrl(parsed.groomPhotoUrl) || DEFAULT_WEDDING_CONFIG.groomPhotoUrl,
+          bridePhotoUrl: normalizeAssetUrl(parsed.bridePhotoUrl) || DEFAULT_WEDDING_CONFIG.bridePhotoUrl,
           groom: { ...DEFAULT_WEDDING_CONFIG.groom, ...(parsed.groom || {}) },
           bride: { ...DEFAULT_WEDDING_CONFIG.bride, ...(parsed.bride || {}) },
         };
