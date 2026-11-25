@@ -48,16 +48,16 @@
   <!-- COVER VIEW -->
   <section id="view-cover" class="cover-wrap">
     <div class="cover-card">
-      <p style="font-size:12px; color:#6B5D54; margin-bottom:6px;">Undangan Pernikahan Interaktif · <span id="cover-date"></span></p>
-      <h1 id="cover-title" style="font-size:34px; margin-bottom:8px;"></h1>
-      <p id="cover-guest" style="font-size:14px; color:#5C4F47; margin-bottom:8px;"></p>
+      <p style="font-size:12px; color:#6B5D54; margin-bottom:6px;">Undangan Pernikahan Interaktif · <span id="cover-date">21 – 22 Desember 2026</span></p>
+      <h1 id="cover-title" style="font-size:34px; margin-bottom:8px;">Bismi &amp; Rendi</h1>
+      <p id="cover-guest" style="font-size:14px; color:#5C4F47; margin-bottom:8px;">Kepada Yth. Bapak/Ibu/Sahabat</p>
       <div class="preview-row">
         <canvas id="preview-groom" width="110" height="110"></canvas>
         <canvas id="preview-bride" width="110" height="110"></canvas>
       </div>
       <div class="role-pick">
-        <button type="button" id="pick-groom" class="role-btn active" onclick="selectRole('groom')">Main: <span id="lbl-groom"></span></button>
-        <button type="button" id="pick-bride" class="role-btn" onclick="selectRole('bride')">Main: <span id="lbl-bride"></span></button>
+        <button type="button" id="pick-groom" class="role-btn active" onclick="selectRole('groom')">Main: <span id="lbl-groom">Rendi</span></button>
+        <button type="button" id="pick-bride" class="role-btn" onclick="selectRole('bride')">Main: <span id="lbl-bride">Bismi</span></button>
       </div>
       <div style="display:flex; flex-direction:column; gap:10px;">
         <button type="button" class="btn-primary" onclick="startAdventure()">Mulai Petualangan &amp; Putar Musik</button>
@@ -214,6 +214,7 @@
       const guestName = params.get('to') || 'Bapak/Ibu/Sahabat';
       let leadRole = 'groom';
       const imgCache = {};
+      function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
       window.zoomPhoto = function(url, label) {
         if (!url) return;
@@ -362,9 +363,14 @@
             if (!customAudio) { customAudio = new Audio(cfg.customMusicDataUrl); customAudio.loop = true; }
             customAudio.play().catch(function(){});
           } else {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            musicTimer = setInterval(function() { playFreq(440 * Math.pow(2, (NOTES[step++ % NOTES.length] - 69) / 12), 0.42); }, 380);
+            try {
+              const AC = window.AudioContext || window.webkitAudioContext;
+              if (AC) {
+                if (!audioCtx) audioCtx = new AC();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                musicTimer = setInterval(function() { playFreq(440 * Math.pow(2, (NOTES[step++ % NOTES.length] - 69) / 12), 0.42); }, 380);
+              }
+            } catch (e) {}
           }
         }
         const txt = musicOn ? 'Musik: ON' : 'Musik: OFF';
@@ -488,12 +494,24 @@
         document.getElementById('st-title').textContent = st.title;
         const body = document.getElementById('st-body');
         if (st.id === 'mempelai') {
-          const gPhoto = cfg.groomPhotoUrl ? '<img src="' + cfg.groomPhotoUrl + '" onerror="this.style.display='none'" onclick="zoomPhoto('' + cfg.groomPhotoUrl.replace(/'/g, '') + '', '' + escapeHtml(cfg.groomFullName).replace(/'/g, '') + '')" referrerpolicy="no-referrer" style="width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top;border-radius:10px;border:1px solid #E5DDD3;margin-bottom:8px;cursor:pointer;" />' : '';
-          const bPhoto = cfg.bridePhotoUrl ? '<img src="' + cfg.bridePhotoUrl + '" onerror="this.style.display='none'" onclick="zoomPhoto('' + cfg.bridePhotoUrl.replace(/'/g, '') + '', '' + escapeHtml(cfg.brideFullName).replace(/'/g, '') + '')" referrerpolicy="no-referrer" style="width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top;border-radius:10px;border:1px solid #E5DDD3;margin-bottom:8px;cursor:pointer;" />' : '';
+          const gPhoto = cfg.groomPhotoUrl ? '<img id="modal-groom-photo" referrerpolicy="no-referrer" style="width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top;border-radius:10px;border:1px solid #E5DDD3;margin-bottom:8px;cursor:pointer;" />' : '';
+          const bPhoto = cfg.bridePhotoUrl ? '<img id="modal-bride-photo" referrerpolicy="no-referrer" style="width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top;border-radius:10px;border:1px solid #E5DDD3;margin-bottom:8px;cursor:pointer;" />' : '';
           body.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">'
-            + '<div style="background:#fff;border:1px solid #E5DDD3;border-radius:12px;padding:10px;text-align:center;">' + bPhoto + '<strong style="font-size:14px;">' + cfg.brideFullName + '</strong><div style="font-size:11px;color:#6B5D54;margin-top:2px;">' + cfg.brideParents + '</div></div>'
-            + '<div style="background:#fff;border:1px solid #E5DDD3;border-radius:12px;padding:10px;text-align:center;">' + gPhoto + '<strong style="font-size:14px;">' + cfg.groomFullName + '</strong><div style="font-size:11px;color:#6B5D54;margin-top:2px;">' + cfg.groomParents + '</div></div>'
-            + '</div><p style="font-style:italic;font-size:12px;text-align:center;">“' + cfg.quote + '” — ' + cfg.quoteSource + '</p>';
+            + '<div style="background:#fff;border:1px solid #E5DDD3;border-radius:12px;padding:10px;text-align:center;">' + bPhoto + '<strong style="font-size:14px;">' + esc(cfg.brideFullName) + '</strong><div style="font-size:11px;color:#6B5D54;margin-top:2px;">' + esc(cfg.brideParents) + '</div></div>'
+            + '<div style="background:#fff;border:1px solid #E5DDD3;border-radius:12px;padding:10px;text-align:center;">' + gPhoto + '<strong style="font-size:14px;">' + esc(cfg.groomFullName) + '</strong><div style="font-size:11px;color:#6B5D54;margin-top:2px;">' + esc(cfg.groomParents) + '</div></div>'
+            + '</div><p style="font-style:italic;font-size:12px;text-align:center;">“' + esc(cfg.quote) + '” — ' + esc(cfg.quoteSource) + '</p>';
+          const mg = document.getElementById('modal-groom-photo');
+          if (mg) {
+            mg.onerror = function() { mg.style.display = 'none'; };
+            mg.onclick = function() { zoomPhoto(cfg.groomPhotoUrl, cfg.groomFullName); };
+            mg.src = cfg.groomPhotoUrl;
+          }
+          const mb = document.getElementById('modal-bride-photo');
+          if (mb) {
+            mb.onerror = function() { mb.style.display = 'none'; };
+            mb.onclick = function() { zoomPhoto(cfg.bridePhotoUrl, cfg.brideFullName); };
+            mb.src = cfg.bridePhotoUrl;
+          }
         } else if (st.id === 'acara') {
           body.innerHTML = '<p><strong>Akad Nikah:</strong> ' + (cfg.akadDateDisplay || cfg.weddingDateDisplay) + ' (' + cfg.akadTime + ')</p><p style="margin-top:4px;"><strong>Resepsi:</strong> ' + (cfg.resepsiDateDisplay || cfg.weddingDateDisplay) + ' (' + cfg.resepsiTime + ')</p><p style="margin:10px 0;"><strong>' + cfg.venueName + '</strong><br/>' + cfg.venueAddress + '</p><a href="' + cfg.mapsUrl + '" target="_blank" class="btn btn-primary" style="background:#2E6F5E;width:100%;margin-top:8px;">Buka Google Maps</a>';
         } else if (st.id === 'amplop') {
